@@ -1,148 +1,308 @@
-# Prática Guiada: Pokédex Assíncrona com Fetch API e Bootstrap
+# Aula 2B — Atividade Prática: Consumindo a API JSONPlaceholder
 
-Este repositório contém uma aplicação web interativa desenvolvida com **HTML5**, **Bootstrap 5** e **JavaScript (ES6+)**. O objetivo principal desta aula/laboratório é praticar a consumo de APIs RESTful usando a `Fetch API`, manipulação assíncrona com `async/await` e manipulação dinâmica do DOM.
-
----
-
-## 🎯 Objetivos do Aprendizado
-
-- Compreender o funcionamento de requisições HTTP assíncronas utilizando a **Fetch API**.
-- Trabalhar com **Promises**, `async/await` e o método `Promise.all` para requisições paralelas.
-- Tratar cenários de sucesso, erro e carregamento (*loading state*).
-- Manipular elementos do DOM dinamicamente com Template Literals.
-- Construir uma interface responsiva e moderna utilizando **Bootstrap 5**.
+**Disciplina:** Programação de Scripts I — Backend
+**Módulo:** Fundamentos (Vanilla JavaScript) → Comunicação HTTP
+**Tipo:** Aula prática / laboratório (complementar à Aula 2)
+**Pré-requisitos:** Aula 2 (Fetch API, `async`/`await`, JSON)
 
 ---
 
-## 🛠️ Tecnologias e Recursos Utilizados
+## 1. Objetivo
 
-### 1. **HTML5 e CSS3**
-- Estrutura semântica (`<header>`, `<main>`, `<script>`).
-- Efeitos visuais simples via CSS (transição suave de *hover* e elevação nos cards).
+Ao final desta aula, o aluno deve ser capaz de:
 
-### 2. **Bootstrap 5 (via CDN)**
-- **Grid System Responsivo**: Uso de `row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-4` para adaptar a quantidade de colunas de acordo com a tela.
-- **Componentes**: `card`, `badge`, `input-group`, `spinner-border` e `alert`.
-- **Utilitários de Flexbox e Espaçamento**: `d-flex`, `justify-content-between`, `py-5`, `mb-4`, etc.
+- Consumir uma **API REST pública real** (não mais um arquivo `.json` local);
+- Fazer múltiplas requisições **encadeadas** (buscar um usuário e, a partir dele, buscar seus posts);
+- Entender que o padrão de código do `fetch` **não muda** entre um arquivo local e uma API remota — só a URL;
+- Praticar renderização dinâmica de listas e navegação simples entre "telas" (lista → detalhe) usando apenas Vanilla JavaScript.
 
-### 3. **JavaScript (ES6+) & Web APIs**
-- **Fetch API**: Requisições HTTP nativas do navegador para obter dados no formato JSON da [PokéAPI](https://pokeapi.co/).
-- **`async / await`**: Sintaxe limpa e legível para tratamento de Promises.
-- **`Promise.all()`**: Utilizado para buscar os detalhes individuais de múltiplos Pokémon em paralelo, otimizando o tempo de carregamento da página.
-- **Manipulação do DOM**: Uso de `insertAdjacentHTML` e `innerHTML` para renderização dinâmica das cartas.
-- **Manipulação de Strings e Números**: Uso de `padStart` para formatar os IDs (`#001`, `#025`) e operações matemáticas para conversão de decímetros/hectogramas para metros/quilogramas.
+Este é um exercício **isolado do projeto de cadastro de pacientes** — não vamos alterar aquele projeto aqui. A ideia é dar repertório aos alunos praticando os mesmos conceitos da Aula 2 contra uma API de verdade, publicada na internet, antes de partirmos para construir nosso próprio servidor com Node.js na Aula 3.
 
 ---
 
-## 📂 Estrutura do Código Explicação Passo a Passo
+## 2. Problema
 
-1. **Constantes e Seletores**: Mapeamento dos elementos HTML (`input`, `button`, `grid`, `loading`) que sofrerão interações.
-2. **`fetchPokemonData(urlOrName)`**: Função auxiliar que decide se a busca é por URL completa ou por nome/ID digitado no campo de busca.
-3. **`loadInitialPokemon(limit)`**: 
-   - Faz a requisição inicial da lista de Pokémon.
-   - Extrai as URLs individuais e usa `Promise.all` para carregar todas em paralelo.
-   - Chama a função de renderização para cada Pokémon retornado.
-4. **`renderPokemonCard(pokemon)`**: Monta o componente HTML do card com imagem oficial, tipos (badges), altura e peso, inserindo-o no container da página.
-5. **`handleSearch()`**: Captura a busca do usuário. Se o campo estiver vazio, recarrega os primeiros 20; caso contrário, busca o Pokémon específico digitado.
-6. **Controle de Estado de Interface**: Funções `showLoading` e `showError` para garantir feedback visual apropriado durante as requisições.
+Até agora, só buscamos dados de um arquivo `pacientes.json` que estava dentro do próprio projeto. Mas como isso funciona quando o servidor está em **outro lugar da internet**, mantido por outra pessoa, com muito mais dados e vários endpoints diferentes?
 
----
+Vamos usar a [JSONPlaceholder](https://jsonplaceholder.typicode.com/), uma API pública gratuita e sem necessidade de autenticação, feita justamente para prática e testes. Ela simula um sistema de usuários e posts (como um blog), com endpoints como:
 
-## 🚀 ORIENTAÇÕES - DESAFIO PRÁTICO PARA OS ALUNOS
+- `https://jsonplaceholder.typicode.com/users` → lista de usuários
+- `https://jsonplaceholder.typicode.com/posts?userId=1` → posts de um usuário específico
 
-Agora é a sua vez! O objetivo deste desafio é estender a Pokédex adicionando uma funcionalidade de **Modal de Detalhes Completo**.
-
-### 📋 Requisitos do Desafio
-
-Ao clicar em qualquer card de Pokémon, a aplicação deve abrir um **Modal do Bootstrap** contendo informações detalhadas do Pokémon selecionado.
-
-#### 1. Propriedades a Exibir no Modal:
-- **Status Base (Stats)**: Exibir barras de progresso (`progress bar` do Bootstrap) para os status:
-  - *HP* (`hp`)
-  - *Ataque* (`attack`)
-  - *Defesa* (`defense`)
-  - *Velocidade* (`speed`)
-- **Habilidades (Abilities)**: Listar as habilidades do Pokémon (ex: *Overgrow*, *Chlorophyll*).
-- **Sons / Cries (Áudio)**: Adicionar um botão ou player de áudio HTML5 (`<audio>`) para reproduzir o som oficial do Pokémon (`cries.latest` ou `cries.legacy`).
-- **Galeria de Sprites (Frente e Costas)**: Mostrar as variações Normal e Shiny (usando `sprites.front_default`, `sprites.back_default`, `sprites.front_shiny`, `sprites.back_shiny`).
+Vamos construir uma pequena aplicação que lista os usuários e, ao clicar em um deles, busca e exibe os posts daquele usuário — exigindo uma **segunda requisição**, disparada a partir do resultado da primeira.
 
 ---
 
-### 💡 Dicas de Implementação
+## 3. Conceitos
 
-1. **Adicionar o Modal ao HTML**:
-   Inclua a estrutura base de um [Modal do Bootstrap 5](https://getbootstrap.com/docs/5.3/components/modal/) no seu `index.html`.
+| Conceito | Por que usamos |
+|---|---|
+| **API pública / API de terceiros** | Mostrar que o mesmo `fetch` que usamos localmente funciona contra qualquer servidor HTTP do mundo |
+| **Endpoint** | Cada "caminho" da API representa um recurso diferente (`/users`, `/posts`) |
+| **Query string (`?userId=1`)** | Forma de filtrar/parametrizar uma requisição GET |
+| **Requisições encadeadas** | Uma requisição pode depender do resultado de outra (buscar posts *depois* de saber o ID do usuário) |
+| **Renderização condicional** | Alternar entre "tela de lista" e "tela de detalhe" trocando o conteúdo de um mesmo elemento |
+| **Delegação de eventos (`addEventListener` em elementos criados dinamicamente)** | Como reagir a cliques em elementos que não existiam quando a página carregou |
 
-   ```html
-   <!-- Modal de Detalhes -->
-   <div class="modal fade" id="pokemonModal" tabindex="-1" aria-hidden="true">
-     <div class="modal-dialog modal-dialog-centered">
-       <div class="modal-content">
-         <div class="modal-header">
-           <h5 class="modal-title text-capitalize" id="pokemonModalTitle">Detalhes</h5>
-           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-         </div>
-         <div class="modal-body" id="pokemonModalBody">
-           <!-- Conteúdo inserido dinamicamente via JS -->
-         </div>
-       </div>
-     </div>
-   </div>
-   ```
-
-2. **Tornar o Card Clicável**:
-   No `renderPokemonCard`, adicione um evento de clique ou atributos do Bootstrap para abrir o modal e passar o ID do Pokémon.
-
-   *Exemplo adicionando classe e dataset no card:*
-   ```javascript
-   // No HTML retornado pelo renderPokemonCard, adicione:
-   // style="cursor: pointer;" onclick="openPokemonModal(${pokemon.id})"
-   ```
-
-3. **Função de Modal no JavaScript**:
-   Crie uma função `openPokemonModal(id)` que busque os dados (ou reutilize se tiver guardado em cache) e preencha o corpo do modal:
-
-   ```javascript
-   async function openPokemonModal(id) {
-     const pokemon = await fetchPokemonData(id);
-     
-     // 1. Extrair stats (hp, attack, defense, speed)
-     // 2. Extrair habilidades
-     // 3. Extrair áudio de cries
-     // 4. Montar o HTML interno do modal e exibir via Bootstrap JS API
-     
-     const modalElement = document.getElementById('pokemonModal');
-     const modal = new bootstrap.Modal(modalElement);
-     modal.show();
-   }
-   ```
-
-4. **Componente de Barras de Progresso (Bootstrap)**:
-   Para os atributos/stats, você pode renderizar a barra assim:
-   ```html
-   <div class="mb-2">
-     <small class="fw-bold">Ataque: 49</small>
-     <div class="progress" style="height: 10px;">
-       <div class="progress-bar bg-danger" role="progressbar" style="width: 49%;" aria-valuenow="49" aria-valuemin="0" aria-valuemax="100"></div>
-     </div>
-   </div>
-   ```
+> **Observação pedagógica:** essa é uma ótima aula para reforçar, na prática, que "Fetch API não sabe nem se importa" se está falando com um arquivo local, uma API pública ou, no futuro, o próprio servidor Node.js da turma. O padrão de código é sempre o mesmo — isso é uma das ideias mais importantes do curso inteiro.
 
 ---
 
-![Demonstração da Tela Inicial - Pokédex](./img/tela-inicial.png)
+## 4. Estrutura do projeto
 
-![Demonstração da Tela Modal - Pokédex](./img/tela-modal.png)
+```
+aula-02a-jsonplaceholder/
+├── index.html
+├── css/
+│   └── style.css
+└── js/
+    └── app.js
+```
+
+> Projeto novo e independente — não é uma evolução do cadastro de pacientes. Deixe isso bem claro para a turma, para não gerar confusão sobre "qual projeto é qual".
+
 ---
 
-## ✅ Desafio implementado
+## 5. Código
 
-O modal de detalhes foi implementado em `index.html` e `js/app.js`:
+### `index.html`
 
-- [x] Cards clicáveis (também pelo teclado: Enter/Espaço)
-- [x] Barras de progresso para HP, Ataque, Defesa e Velocidade
-- [x] Habilidades em badges (marcando as ocultas)
-- [x] Player de áudio com o *cry* do Pokémon (pausa ao fechar o modal)
-- [x] Sprites normal e shiny, frente e costas (com aviso quando o sprite não existe)
-- [x] Spinner enquanto carrega e mensagem amigável em caso de erro
-- [x] Cache dos Pokémon já abertos, evitando requisições repetidas
+```html
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Usuários e Posts — JSONPlaceholder</title>
+
+  <link
+    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+    rel="stylesheet"
+  >
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <div class="container py-5">
+    <h1 class="mb-4">Usuários (JSONPlaceholder)</h1>
+
+    <p id="carregando" class="text-muted">Carregando usuários...</p>
+
+    <!-- Tela 1: lista de usuários -->
+    <div id="tela-lista" class="row g-3"></div>
+
+    <!-- Tela 2: detalhe de um usuário (começa escondida) -->
+    <div id="tela-detalhe" class="d-none">
+      <button id="btn-voltar" class="btn btn-outline-secondary mb-3">← Voltar</button>
+      <h2 id="detalhe-nome" class="h4 mb-3"></h2>
+      <ul id="lista-posts" class="list-group"></ul>
+    </div>
+  </div>
+
+  <script src="js/app.js"></script>
+</body>
+</html>
+```
+
+### `css/style.css`
+
+```css
+body {
+  background-color: #f8f9fa;
+}
+
+.card-usuario {
+  cursor: pointer;
+  transition: transform 0.15s ease-in-out;
+}
+
+.card-usuario:hover {
+  transform: translateY(-3px);
+}
+```
+
+### `js/app.js`
+
+```javascript
+const URL_BASE = 'https://jsonplaceholder.typicode.com';
+
+// Referências aos elementos do DOM
+const telaLista = document.getElementById('tela-lista');
+const telaDetalhe = document.getElementById('tela-detalhe');
+const mensagemCarregando = document.getElementById('carregando');
+const detalheNome = document.getElementById('detalhe-nome');
+const listaPosts = document.getElementById('lista-posts');
+const botaoVoltar = document.getElementById('btn-voltar');
+
+// Busca a lista de usuários na API
+async function carregarUsuarios() {
+  try {
+    const resposta = await fetch(`${URL_BASE}/users`);
+
+    if (!resposta.ok) {
+      throw new Error(`Erro HTTP: ${resposta.status}`);
+    }
+
+    const usuarios = await resposta.json();
+    renderizarListaUsuarios(usuarios);
+  } catch (erro) {
+    console.error('Erro ao carregar usuários:', erro);
+    mensagemCarregando.textContent = 'Não foi possível carregar os usuários.';
+    return;
+  }
+
+  mensagemCarregando.style.display = 'none';
+}
+
+// Desenha um "card" para cada usuário na tela de lista
+function renderizarListaUsuarios(usuarios) {
+  telaLista.innerHTML = '';
+
+  usuarios.forEach((usuario) => {
+    const coluna = document.createElement('div');
+    coluna.className = 'col-md-4';
+
+    coluna.innerHTML = `
+      <div class="card card-usuario h-100" data-id="${usuario.id}">
+        <div class="card-body">
+          <h5 class="card-title">${usuario.name}</h5>
+          <p class="card-text text-muted">${usuario.email}</p>
+          <p class="card-text"><small>${usuario.company.name}</small></p>
+        </div>
+      </div>
+    `;
+
+    // Cada card criado dinamicamente recebe seu próprio listener de clique
+    coluna.querySelector('.card-usuario').addEventListener('click', () => {
+      abrirDetalheUsuario(usuario);
+    });
+
+    telaLista.appendChild(coluna);
+  });
+}
+
+// Busca os posts de um usuário específico e mostra a tela de detalhe
+async function abrirDetalheUsuario(usuario) {
+  detalheNome.textContent = `Posts de ${usuario.name}`;
+  listaPosts.innerHTML = '<li class="list-group-item">Carregando posts...</li>';
+
+  telaLista.classList.add('d-none');
+  telaDetalhe.classList.remove('d-none');
+
+  try {
+    // Segunda requisição, feita a partir do ID do usuário selecionado
+    const resposta = await fetch(`${URL_BASE}/posts?userId=${usuario.id}`);
+
+    if (!resposta.ok) {
+      throw new Error(`Erro HTTP: ${resposta.status}`);
+    }
+
+    const posts = await resposta.json();
+    renderizarPosts(posts);
+  } catch (erro) {
+    console.error('Erro ao carregar posts:', erro);
+    listaPosts.innerHTML = '<li class="list-group-item text-danger">Erro ao carregar posts.</li>';
+  }
+}
+
+function renderizarPosts(posts) {
+  listaPosts.innerHTML = '';
+
+  posts.forEach((post) => {
+    const item = document.createElement('li');
+    item.className = 'list-group-item';
+    item.innerHTML = `<strong>${post.title}</strong><p class="mb-0">${post.body}</p>`;
+    listaPosts.appendChild(item);
+  });
+}
+
+// Botão para voltar da tela de detalhe para a tela de lista
+botaoVoltar.addEventListener('click', () => {
+  telaDetalhe.classList.add('d-none');
+  telaLista.classList.remove('d-none');
+});
+
+carregarUsuarios();
+```
+
+---
+
+## 6. Explicação
+
+- **`URL_BASE`** — guardamos a URL base em uma constante para não repetir a URL inteira em todo lugar. Isso também deixa explícito, visualmente, que estamos falando com um servidor **externo** — diferente do `fetch('data/pacientes.json')` da aula anterior.
+
+- **`carregarUsuarios()`** — segue exatamente o mesmo padrão `try/await/resposta.ok/resposta.json()` da Aula 2. Vale parar aqui e perguntar à turma: "o que mudou em relação à aula passada?" A resposta esperada é: só a URL.
+
+- **`renderizarListaUsuarios()` + `addEventListener` dentro do `forEach`** — como os cards são criados dinamicamente, não existiam no HTML original, então não podemos simplesmente colocar um `onclick` no HTML. Precisamos adicionar o listener **depois** de criar cada elemento.
+
+- **`abrirDetalheUsuario()`** — este é o ponto mais importante da aula: uma função `async` que dispara uma **segunda** requisição, usando um dado (`usuario.id`) que só temos porque a primeira requisição já tinha terminado. Isso ilustra bem por que `async`/`await` é tão mais legível que encadear vários `.then()`.
+
+- **Alternância de telas com `classList.add('d-none')` / `remove('d-none')`** — uma forma simples (sem framework, sem rotas) de simular "navegação" entre duas telas dentro da mesma página. Vale comentar que ferramentas como React resolvem isso de forma mais sofisticada, mas o princípio (esconder/mostrar conforme o estado) é o mesmo.
+
+---
+
+## 7. Passo a passo (execução em sala)
+
+1. Criar a pasta `aula-02a-jsonplaceholder` com a estrutura de arquivos.
+2. Antes de programar, explorar a API **no próprio navegador**: acessar `https://jsonplaceholder.typicode.com/users` diretamente na barra de endereços e mostrar o JSON puro. Repetir para `/posts?userId=1`.
+3. Montar o HTML com as duas "telas" (lista e detalhe), explicando por que a tela de detalhe começa com `d-none`.
+4. Escrever `carregarUsuarios()` e `renderizarListaUsuarios()`, testando só a listagem antes de avançar.
+5. Escrever `abrirDetalheUsuario()` e `renderizarPosts()`, testando o clique em um card.
+6. Implementar o botão "Voltar" por último.
+7. Abrir o DevTools → aba **Network** e mostrar visualmente as requisições saindo para `jsonplaceholder.typicode.com` — isso ajuda muito a tornar o conceito de "requisição HTTP" concreto.
+
+---
+
+## 8. Exercícios
+
+1. Exiba também o **telefone** e o **website** de cada usuário no card.
+2. Na tela de detalhe, exiba quantos posts aquele usuário tem, com um texto como "3 posts encontrados".
+3. Adicione um campo de busca que filtra os cards de usuário por nome, sem precisar de nova requisição (filtrando o array que já foi carregado).
+4. Trate o caso de um usuário sem nenhum post (mostre uma mensagem amigável ao invés de uma lista vazia).
+
+---
+
+## 9. Extensões
+
+- Ao clicar em um post específico, buscar e exibir também os **comentários** daquele post (`/comments?postId=X`) — uma terceira camada de requisição encadeada.
+- Adicionar um campo de loading (*spinner*) mais elaborado durante a troca de tela.
+- Comparar, em voz alta com a turma, o tempo de resposta da JSONPlaceholder com o tempo de resposta do `pacientes.json` local da Aula 2 (usando a aba Network) — ótima forma de discutir latência de rede.
+
+---
+
+## 10. Erros comuns
+
+| Erro | Causa provável |
+|---|---|
+| Clique no card não faz nada | O `addEventListener` foi colocado no HTML estático, não dentro do `forEach` que cria os cards dinamicamente |
+| Posts do usuário errado aparecem | Uso de uma variável compartilhada incorretamente, ou esquecimento de passar `usuario.id` correto na query string |
+| Tela de detalhe não aparece | Confusão entre `classList.add` e `classList.remove` (adicionar `d-none` esconde, remover mostra) |
+| Erro de CORS | Muito raro com a JSONPlaceholder (ela permite CORS por padrão), mas se acontecer com outra API no futuro, é sinal de que o servidor não autoriza requisições vindas do navegador do aluno |
+| `usuarios.forEach is not a function` | A API retornou um erro (ex: objeto de erro) em vez de um array — reforça a importância de checar `resposta.ok` |
+
+---
+
+## 11. Perguntas para discussão em sala
+
+1. O que mudou no código do `fetch` em relação à Aula 2, agora que estamos falando com uma API remota, e não mais com um arquivo local?
+2. Por que precisamos esperar a primeira requisição (`/users`) terminar antes de poder fazer a segunda (`/posts?userId=...`)?
+3. O que aconteceria se tentássemos buscar os posts **antes** de sabermos o ID do usuário?
+4. Que tipo de sistema real vocês imaginam que poderia ser construído usando esse padrão de "lista → detalhe com nova requisição"? (ex: e-commerce, rede social, prontuário médico)
+5. Esse mesmo padrão de código vai servir, com pouquíssimas mudanças, para quando nosso próprio servidor Node.js estiver pronto — o que vocês acham que vai precisar mudar, e o que vai continuar igual?
+
+---
+
+## Observações para o professor
+
+- Esta aula é **opcional/complementar** dentro da sequência, mas altamente recomendada: ela consolida o padrão de `fetch` aprendido na Aula 2 contra uma API de verdade, com múltiplos endpoints e relacionamento entre dados — algo que o `pacientes.json` estático não permite demonstrar sozinho.
+- Sugestão de duração: ~15min de exploração da API direto no navegador, ~45min de código guiado, ~30min de exercícios.
+- Não é necessário devolver para o projeto de cadastro de pacientes nesta aula — a Aula 3 retoma normalmente a partir da Aula 2, introduzindo o Node.js.
+- Se a turma tiver pouco tempo disponível no cronograma, esta aula pode ser marcada como **atividade extraclasse** ou **desafio opcional**, sem prejuízo para a sequência principal do curso.
+---
+
+## ✅ Exercícios implementados
+
+- [x] Telefone e website de cada usuário no card
+- [x] Tela de detalhe mostra "N posts encontrados"
+- [x] Campo de busca que filtra os cards por nome, sem nova requisição
+- [x] Mensagem amigável para usuário sem nenhum post

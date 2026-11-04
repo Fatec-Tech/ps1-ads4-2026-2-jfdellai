@@ -133,3 +133,16 @@ Ao clicar em qualquer card de Pokémon, a aplicação deve abrir um **Modal do B
 ![Demonstração da Tela Inicial - Pokédex](./img/tela-inicial.png)
 
 ![Demonstração da Tela Modal - Pokédex](./img/tela-modal.png)
+---
+
+## ✅ Desafio implementado
+
+O modal de detalhes foi implementado em `index.html` e `js/app.js`:
+
+- [x] Cards clicáveis (também pelo teclado: Enter/Espaço)
+- [x] Barras de progresso para HP, Ataque, Defesa e Velocidade
+- [x] Habilidades em badges (marcando as ocultas)
+- [x] Player de áudio com o *cry* do Pokémon (pausa ao fechar o modal)
+- [x] Sprites normal e shiny, frente e costas (com aviso quando o sprite não existe)
+- [x] Spinner enquanto carrega e mensagem amigável em caso de erro
+- [x] Cache dos Pokémon já abertos, evitando requisições repetidas

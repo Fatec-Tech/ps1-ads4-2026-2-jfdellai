@@ -1,59 +1,84 @@
 <!doctype html>
 <html lang="pt-br">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Cadastro de Pacientes</title>
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>Cadastro de Pacientes</title>
 
-  <link
-    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
-    rel="stylesheet"
-  >
-  <link rel="stylesheet" href="css/style.css">
-</head>
-<body>
+		<!-- Bootstrap via CDN, apenas para estilização básica -->
+		<link
+			href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+			rel="stylesheet"
+		/>
+		<link rel="stylesheet" href="css/style.css" />
+	</head>
+	<body>
+		<div class="container py-5">
+			<h1 class="mb-4">Cadastro de Pacientes</h1>
 
-  <div class="container py-5">
-    <h1 class="mb-4">Cadastro de Pacientes</h1>
+			<!-- Formulário de cadastro -->
+			<form id="form-paciente" class="row g-3 mb-5">
+				<div class="col-md-4">
+					<label for="nome" class="form-label">Nome</label>
+					<input type="text" class="form-control" id="nome" required />
+				</div>
 
-    <form id="form-paciente" class="row g-3 mb-5">
-      <div class="col-md-4">
-        <label for="nome" class="form-label">Nome</label>
-        <input type="text" class="form-control" id="nome" required>
-      </div>
+				<div class="col-md-4">
+					<label for="email" class="form-label">E-mail</label>
+					<input type="email" class="form-control" id="email" required />
+				</div>
 
-      <div class="col-md-4">
-        <label for="email" class="form-label">E-mail</label>
-        <input type="email" class="form-control" id="email" required>
-      </div>
+				<div class="col-md-4">
+					<label for="telefone" class="form-label">Telefone</label>
+					<input type="number" class="form-control" id="telefone" required />
+				</div>
 
-      <div class="col-md-3">
-        <label for="nascimento" class="form-label">Data de nascimento</label>
-        <input type="date" class="form-control" id="nascimento" required>
-      </div>
+				<div class="col-md-3">
+					<label for="nascimento" class="form-label">Data de nascimento</label>
+					<input type="date" class="form-control" id="nascimento" required />
+				</div>
 
-      <div class="col-md-1 d-flex align-items-end">
-        <button type="submit" class="btn btn-primary w-100">+</button>
-      </div>
-    </form>
+				<div class="col-md-1 d-flex align-items-end">
+					<button type="submit" class="btn btn-primary w-100">+</button>
+				</div>
+			</form>
 
-    <h2 class="h4 mb-3">Pacientes cadastrados</h2>
+			<h2 class="h4 mb-3">Pacientes cadastrados</h2>
 
-    <!-- Mensagem de carregamento, visível enquanto os dados não chegam -->
-    <p id="carregando" class="text-muted">Carregando pacientes...</p>
+			<!-- Mensagem de carregamento, visível enquanto os dados não chegam -->
+			<p id="carregando" class="text-muted">Carregando pacientes...</p>
 
-    <table class="table table-striped">
-      <thead>
-        <tr>
-          <th>Nome</th>
-          <th>E-mail</th>
-          <th>Data de nascimento</th>
-        </tr>
-      </thead>
-      <tbody id="tabela-pacientes"></tbody>
-    </table>
-  </div>
+			<!-- Mensagem amigável de erro (preenchida pelo JavaScript quando o fetch falha) -->
+			<div id="erro-carregamento" class="alert alert-danger d-none" role="alert"></div>
 
-  <script src="js/app.js"></script>
-</body>
+			<!-- Contadores: total e quantidade por origem -->
+			<div id="contadores" class="mb-3 d-none">
+				<p id="contador-pacientes" class="mb-1">Total de pacientes: 0</p>
+				<p id="contador-origem" class="mb-0 text-muted small"></p>
+			</div>
+
+			<!-- Exibida no lugar da tabela quando não há nenhum paciente -->
+			<p id="lista-vazia" class="alert alert-secondary d-none">
+				Nenhum paciente cadastrado ainda
+			</p>
+
+			<table id="tabela" class="table table-striped d-none">
+				<thead>
+					<tr>
+						<th>Nome</th>
+						<th>E-mail</th>
+						<th>Idade</th>
+						<th>Telefone</th>
+						<th>Data de nascimento</th>
+						<th>Origem</th>
+					</tr>
+				</thead>
+				<tbody id="tabela-pacientes">
+					<!-- Linhas geradas dinamicamente via JavaScript -->
+				</tbody>
+			</table>
+		</div>
+
+		<script src="js/app.js"></script>
+	</body>
 </html>

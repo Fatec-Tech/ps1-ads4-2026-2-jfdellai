@@ -1,296 +1,148 @@
-# Aula 1 — Cadastro de Pacientes no Navegador
+# Prática Guiada: Pokédex Assíncrona com Fetch API e Bootstrap
 
-**Disciplina:** Programação de Scripts I — Backend
-**Módulo:** Fundamentos (Vanilla JavaScript)
-**Pré-requisitos dos alunos:** HTML, CSS e JavaScript básico
+Este repositório contém uma aplicação web interativa desenvolvida com **HTML5**, **Bootstrap 5** e **JavaScript (ES6+)**. O objetivo principal desta aula/laboratório é praticar a consumo de APIs RESTful usando a `Fetch API`, manipulação assíncrona com `async/await` e manipulação dinâmica do DOM.
 
 ---
 
-## 1. Objetivo
+## 🎯 Objetivos do Aprendizado
 
-Ao final desta aula, o aluno deve ser capaz de:
-
-- Capturar dados de um formulário HTML usando JavaScript;
-- Armazenar esses dados em um **array de objetos** em memória;
-- Renderizar dinamicamente esses dados em uma tabela HTML;
-- Compreender a separação de responsabilidades entre HTML (estrutura), CSS (apresentação) e JavaScript (comportamento e lógica).
-
-Esta aula é o **ponto de partida** de um projeto que vai evoluir ao longo do curso: um sistema de cadastro de pacientes que, futuramente, se comunicará com uma API REST em Node.js/Express e persistirá dados em PostgreSQL. Hoje, tudo roda **100% no navegador**, sem servidor e sem persistência real (os dados somem ao atualizar a página).
+- Compreender o funcionamento de requisições HTTP assíncronas utilizando a **Fetch API**.
+- Trabalhar com **Promises**, `async/await` e o método `Promise.all` para requisições paralelas.
+- Tratar cenários de sucesso, erro e carregamento (*loading state*).
+- Manipular elementos do DOM dinamicamente com Template Literals.
+- Construir uma interface responsiva e moderna utilizando **Bootstrap 5**.
 
 ---
 
-## 2. Problema
+## 🛠️ Tecnologias e Recursos Utilizados
 
-Uma clínica precisa de uma forma simples de **cadastrar pacientes** — nome, e-mail e data de nascimento — e visualizar a lista de todos os pacientes cadastrados, sem precisar de um sistema complexo.
+### 1. **HTML5 e CSS3**
+- Estrutura semântica (`<header>`, `<main>`, `<script>`).
+- Efeitos visuais simples via CSS (transição suave de *hover* e elevação nos cards).
 
-Vamos resolver isso hoje da forma mais simples possível: um formulário HTML, um array em JavaScript para guardar os dados, e uma tabela para exibi-los. Essa simplicidade é proposital — nas próximas aulas, vamos ver as limitações dessa abordagem (os dados não persistem, não podem ser compartilhados entre usuários) e isso vai justificar naturalmente a necessidade de um backend.
+### 2. **Bootstrap 5 (via CDN)**
+- **Grid System Responsivo**: Uso de `row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-4` para adaptar a quantidade de colunas de acordo com a tela.
+- **Componentes**: `card`, `badge`, `input-group`, `spinner-border` e `alert`.
+- **Utilitários de Flexbox e Espaçamento**: `d-flex`, `justify-content-between`, `py-5`, `mb-4`, etc.
 
----
-
-## 3. Conceitos
-
-| Conceito | Por que usamos |
-|---|---|
-| **Formulário HTML (`<form>`)** | Estrutura padrão para capturar dados do usuário |
-| **Evento `submit`** | Permite executar código JavaScript quando o formulário é enviado |
-| **`event.preventDefault()`** | Evita que a página recarregue ao enviar o formulário (comportamento padrão do navegador) |
-| **Array de objetos** | Forma natural de representar uma lista de "coisas" (pacientes), onde cada paciente tem várias propriedades |
-| **Métodos de array (`push`)** | Adiciona um novo paciente à lista |
-| **Manipulação do DOM** | Criar e inserir elementos HTML dinamicamente via JavaScript |
-| **Template strings (`` ` ` ``)** | Facilita montar HTML dinâmico interpolando variáveis |
-| **Funções** | Organizar o código em blocos reutilizáveis e com responsabilidade única |
-
-> **Observação pedagógica:** como a turma já conhece o básico de JS, o foco aqui não é ensinar sintaxe do zero, e sim mostrar **como esses conceitos se combinam** para resolver um problema real. Vale reforçar bem o `preventDefault()`, pois é um erro comum de esquecimento mesmo entre quem já sabe a sintaxe.
+### 3. **JavaScript (ES6+) & Web APIs**
+- **Fetch API**: Requisições HTTP nativas do navegador para obter dados no formato JSON da [PokéAPI](https://pokeapi.co/).
+- **`async / await`**: Sintaxe limpa e legível para tratamento de Promises.
+- **`Promise.all()`**: Utilizado para buscar os detalhes individuais de múltiplos Pokémon em paralelo, otimizando o tempo de carregamento da página.
+- **Manipulação do DOM**: Uso de `insertAdjacentHTML` e `innerHTML` para renderização dinâmica das cartas.
+- **Manipulação de Strings e Números**: Uso de `padStart` para formatar os IDs (`#001`, `#025`) e operações matemáticas para conversão de decímetros/hectogramas para metros/quilogramas.
 
 ---
 
-## 4. Estrutura do projeto
+## 📂 Estrutura do Código Explicação Passo a Passo
 
-```
-aula-01-cadastro-pacientes/
-├── index.html
-├── css/
-│   └── style.css
-└── js/
-    └── app.js
-```
-
----
-
-## 5. Código
-
-### `index.html`
-
-```html
-<!DOCTYPE html>
-<html lang="pt-br">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Cadastro de Pacientes</title>
-
-  <!-- Bootstrap via CDN, apenas para estilização básica -->
-  <link
-    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
-    rel="stylesheet"
-  >
-  <link rel="stylesheet" href="css/style.css">
-</head>
-<body>
-
-  <div class="container py-5">
-    <h1 class="mb-4">Cadastro de Pacientes</h1>
-
-    <!-- Formulário de cadastro -->
-    <form id="form-paciente" class="row g-3 mb-5">
-      <div class="col-md-4">
-        <label for="nome" class="form-label">Nome</label>
-        <input type="text" class="form-control" id="nome" required>
-      </div>
-
-      <div class="col-md-4">
-        <label for="email" class="form-label">E-mail</label>
-        <input type="email" class="form-control" id="email" required>
-      </div>
-
-      <div class="col-md-3">
-        <label for="nascimento" class="form-label">Data de nascimento</label>
-        <input type="date" class="form-control" id="nascimento" required>
-      </div>
-
-      <div class="col-md-1 d-flex align-items-end">
-        <button type="submit" class="btn btn-primary w-100">+</button>
-      </div>
-    </form>
-
-    <!-- Tabela de pacientes -->
-    <h2 class="h4 mb-3">Pacientes cadastrados</h2>
-    <table class="table table-striped">
-      <thead>
-        <tr>
-          <th>Nome</th>
-          <th>E-mail</th>
-          <th>Data de nascimento</th>
-        </tr>
-      </thead>
-      <tbody id="tabela-pacientes">
-        <!-- Linhas geradas dinamicamente via JavaScript -->
-      </tbody>
-    </table>
-  </div>
-
-  <script src="js/app.js"></script>
-</body>
-</html>
-```
-
-### `css/style.css`
-
-```css
-/* Estilos específicos da aplicação — o Bootstrap cuida do resto */
-
-body {
-  background-color: #f8f9fa;
-}
-
-h1 {
-  color: #212529;
-}
-
-#tabela-pacientes tr {
-  animation: fadeIn 0.3s ease-in;
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-```
-
-### `js/app.js`
-
-```javascript
-// Array que guarda os pacientes cadastrados (em memória, só nesta sessão)
-const pacientes = [];
-
-// Referências aos elementos do DOM que vamos usar várias vezes
-const formulario = document.getElementById('form-paciente');
-const tabela = document.getElementById('tabela-pacientes');
-
-// Função responsável por adicionar um paciente ao array
-function adicionarPaciente(nome, email, nascimento) {
-  const novoPaciente = { nome, email, nascimento };
-  pacientes.push(novoPaciente);
-}
-
-// Função responsável por desenhar a tabela inteira a partir do array
-function renderizarTabela() {
-  tabela.innerHTML = ''; // limpa a tabela antes de redesenhar
-
-  pacientes.forEach((paciente) => {
-    const linha = document.createElement('tr');
-
-    linha.innerHTML = `
-      <td>${paciente.nome}</td>
-      <td>${paciente.email}</td>
-      <td>${formatarData(paciente.nascimento)}</td>
-    `;
-
-    tabela.appendChild(linha);
-  });
-}
-
-// Função utilitária só para formatar a data no padrão dd/mm/aaaa
-function formatarData(dataISO) {
-  const [ano, mes, dia] = dataISO.split('-');
-  return `${dia}/${mes}/${ano}`;
-}
-
-// Evento disparado quando o formulário é enviado
-formulario.addEventListener('submit', (event) => {
-  event.preventDefault(); // evita o recarregamento da página
-
-  const nome = document.getElementById('nome').value;
-  const email = document.getElementById('email').value;
-  const nascimento = document.getElementById('nascimento').value;
-
-  adicionarPaciente(nome, email, nascimento);
-  renderizarTabela();
-
-  formulario.reset(); // limpa os campos do formulário
-});
-```
+1. **Constantes e Seletores**: Mapeamento dos elementos HTML (`input`, `button`, `grid`, `loading`) que sofrerão interações.
+2. **`fetchPokemonData(urlOrName)`**: Função auxiliar que decide se a busca é por URL completa ou por nome/ID digitado no campo de busca.
+3. **`loadInitialPokemon(limit)`**: 
+   - Faz a requisição inicial da lista de Pokémon.
+   - Extrai as URLs individuais e usa `Promise.all` para carregar todas em paralelo.
+   - Chama a função de renderização para cada Pokémon retornado.
+4. **`renderPokemonCard(pokemon)`**: Monta o componente HTML do card com imagem oficial, tipos (badges), altura e peso, inserindo-o no container da página.
+5. **`handleSearch()`**: Captura a busca do usuário. Se o campo estiver vazio, recarrega os primeiros 20; caso contrário, busca o Pokémon específico digitado.
+6. **Controle de Estado de Interface**: Funções `showLoading` e `showError` para garantir feedback visual apropriado durante as requisições.
 
 ---
 
-## 6. Explicação
+## 🚀 ORIENTAÇÕES - DESAFIO PRÁTICO PARA OS ALUNOS
 
-- **`const pacientes = []`** — este é o "banco de dados" da nossa aplicação por enquanto. É importante deixar claro que esse array vive só na memória do navegador: se a página for recarregada, tudo se perde. Esse é exatamente o problema que vamos resolver mais adiante com backend + banco de dados.
+Agora é a sua vez! O objetivo deste desafio é estender a Pokédex adicionando uma funcionalidade de **Modal de Detalhes Completo**.
 
-- **`document.getElementById(...)`** — forma clássica de pegar referências a elementos do DOM. Guardamos `formulario` e `tabela` em variáveis no topo do arquivo porque vamos usá-los várias vezes; isso evita repetir a busca no DOM toda hora (bom hábito de performance e legibilidade).
+### 📋 Requisitos do Desafio
 
-- **`adicionarPaciente()`** — função pequena, com uma única responsabilidade: criar um objeto paciente e colocá-lo no array. Separar essa lógica em uma função facilita reaproveitamento e leitura do código.
+Ao clicar em qualquer card de Pokémon, a aplicação deve abrir um **Modal do Bootstrap** contendo informações detalhadas do Pokémon selecionado.
 
-- **`renderizarTabela()`** — sempre que os dados mudam, chamamos essa função para redesenhar a tabela do zero. É uma versão simplificada (e não otimizada) do que frameworks como React fazem por trás dos panos — vale comentar isso brevemente, sem entrar em detalhes, só para plantar a semente.
-
-- **Template strings com `${}`** — muito mais legível do que concatenar strings com `+`. Vale reforçar que isso é ES6+.
-
-- **`event.preventDefault()`** — sem essa linha, o navegador tentaria enviar o formulário para o servidor (que ainda não existe) e recarregaria a página, perdendo tudo.
-
-- **`formulario.reset()`** — limpa os campos automaticamente após o cadastro, melhorando a experiência do usuário.
-
----
-
-## 7. Passo a passo (execução em sala)
-
-1. Criar a pasta `aula-01-cadastro-pacientes` com a estrutura de arquivos indicada.
-2. Criar o `index.html` e explicar a estrutura do formulário e da tabela **antes** de adicionar o CSS/Bootstrap.
-3. Adicionar o link do Bootstrap via CDN e mostrar a diferença visual (antes/depois).
-4. Criar o `css/style.css` e mostrar que ele só adiciona detalhes que o Bootstrap não cobre.
-5. Criar o `js/app.js` **incrementalmente**:
-   a. Primeiro, só capturar o evento de `submit` e dar um `console.log()` dos valores — mostrar no DevTools.
-   b. Depois, adicionar o `preventDefault()` e mostrar a diferença de comportamento.
-   c. Em seguida, criar o array `pacientes` e a função `adicionarPaciente`.
-   d. Por fim, criar `renderizarTabela()` e conectar tudo.
-6. Abrir o `index.html` diretamente no navegador (duplo clique ou "Open with Live Server") e testar cadastrando 2–3 pacientes.
-7. Recarregar a página propositalmente para os alunos verem os dados sumirem — gancho para a próxima aula.
+#### 1. Propriedades a Exibir no Modal:
+- **Status Base (Stats)**: Exibir barras de progresso (`progress bar` do Bootstrap) para os status:
+  - *HP* (`hp`)
+  - *Ataque* (`attack`)
+  - *Defesa* (`defense`)
+  - *Velocidade* (`speed`)
+- **Habilidades (Abilities)**: Listar as habilidades do Pokémon (ex: *Overgrow*, *Chlorophyll*).
+- **Sons / Cries (Áudio)**: Adicionar um botão ou player de áudio HTML5 (`<audio>`) para reproduzir o som oficial do Pokémon (`cries.latest` ou `cries.legacy`).
+- **Galeria de Sprites (Frente e Costas)**: Mostrar as variações Normal e Shiny (usando `sprites.front_default`, `sprites.back_default`, `sprites.front_shiny`, `sprites.back_shiny`).
 
 ---
 
-## 8. Exercícios
+### 💡 Dicas de Implementação
 
-1. Adicione um campo **telefone** ao formulário e faça-o aparecer na tabela.
-2. Adicione uma coluna **"Idade"** na tabela, calculada automaticamente a partir da data de nascimento (dica: use `Date` e subtraia os anos).
-3. Adicione um contador acima da tabela mostrando **"Total de pacientes: X"**, atualizado automaticamente.
-4. Impeça o cadastro de e-mails duplicados, exibindo um `alert()` se o e-mail já existir no array.
+1. **Adicionar o Modal ao HTML**:
+   Inclua a estrutura base de um [Modal do Bootstrap 5](https://getbootstrap.com/docs/5.3/components/modal/) no seu `index.html`.
+
+   ```html
+   <!-- Modal de Detalhes -->
+   <div class="modal fade" id="pokemonModal" tabindex="-1" aria-hidden="true">
+     <div class="modal-dialog modal-dialog-centered">
+       <div class="modal-content">
+         <div class="modal-header">
+           <h5 class="modal-title text-capitalize" id="pokemonModalTitle">Detalhes</h5>
+           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+         </div>
+         <div class="modal-body" id="pokemonModalBody">
+           <!-- Conteúdo inserido dinamicamente via JS -->
+         </div>
+       </div>
+     </div>
+   </div>
+   ```
+
+2. **Tornar o Card Clicável**:
+   No `renderPokemonCard`, adicione um evento de clique ou atributos do Bootstrap para abrir o modal e passar o ID do Pokémon.
+
+   *Exemplo adicionando classe e dataset no card:*
+   ```javascript
+   // No HTML retornado pelo renderPokemonCard, adicione:
+   // style="cursor: pointer;" onclick="openPokemonModal(${pokemon.id})"
+   ```
+
+3. **Função de Modal no JavaScript**:
+   Crie uma função `openPokemonModal(id)` que busque os dados (ou reutilize se tiver guardado em cache) e preencha o corpo do modal:
+
+   ```javascript
+   async function openPokemonModal(id) {
+     const pokemon = await fetchPokemonData(id);
+     
+     // 1. Extrair stats (hp, attack, defense, speed)
+     // 2. Extrair habilidades
+     // 3. Extrair áudio de cries
+     // 4. Montar o HTML interno do modal e exibir via Bootstrap JS API
+     
+     const modalElement = document.getElementById('pokemonModal');
+     const modal = new bootstrap.Modal(modalElement);
+     modal.show();
+   }
+   ```
+
+4. **Componente de Barras de Progresso (Bootstrap)**:
+   Para os atributos/stats, você pode renderizar a barra assim:
+   ```html
+   <div class="mb-2">
+     <small class="fw-bold">Ataque: 49</small>
+     <div class="progress" style="height: 10px;">
+       <div class="progress-bar bg-danger" role="progressbar" style="width: 49%;" aria-valuenow="49" aria-valuemin="0" aria-valuemax="100"></div>
+     </div>
+   </div>
+   ```
 
 ---
 
-## 9. Extensões (para alunos mais avançados ou tarefa extra)
+![Demonstração da Tela Inicial - Pokédex](./img/tela-inicial.png)
 
-- Adicionar um botão **"Remover"** em cada linha da tabela, usando o índice do array.
-- Adicionar um campo de **busca** que filtra a tabela por nome em tempo real (evento `input`).
-- Ordenar a tabela por nome ao clicar no cabeçalho da coluna.
-- Salvar os dados no `localStorage` do navegador, para que sobrevivam a um recarregamento de página (isso antecipa, de forma simples, o conceito de persistência — sem ainda envolver backend).
-
+![Demonstração da Tela Modal - Pokédex](./img/tela-modal.png)
 ---
 
-## 10. Erros comuns
+## ✅ Desafio implementado
 
-| Erro | Causa provável |
-|---|---|
-| Página recarrega ao clicar em "+" | Esqueceu do `event.preventDefault()` |
-| Tabela não atualiza | Esqueceu de chamar `renderizarTabela()` após adicionar o paciente |
-| `Cannot read properties of null` | `document.getElementById()` retornou `null` porque o `<script>` foi carregado antes do HTML existir (lembrar de colocar `<script>` no final do `<body>`, como no exemplo) |
-| Data aparece formatada errada | Confundir a ordem `dia/mes/ano` vs. o formato `aaaa-mm-dd` que o `<input type="date">` retorna |
-| Bootstrap não aparece | Esqueceu de incluir o link do CDN, ou a ordem dos `<link>` está errada (o `style.css` deve vir **depois** do Bootstrap, para poder sobrescrever) |
+O modal de detalhes foi implementado em `index.html` e `js/app.js`:
 
----
-
-## 11. Perguntas para discussão em sala
-
-1. O que aconteceria se recarregássemos a página agora? Por quê isso acontece?
-2. Por que separamos o JavaScript em um arquivo `.js` ao invés de colocá-lo direto no HTML?
-3. Qual a diferença entre os dados ficarem "na memória do navegador" e ficarem "em um banco de dados"?
-4. Se dois computadores diferentes abrirem essa mesma página, eles vão compartilhar a mesma lista de pacientes? Por quê?
-5. O que precisaríamos mudar nesse código se quiséssemos que os dados fossem compartilhados entre vários usuários ao mesmo tempo? (gancho para introduzir a ideia de servidor/backend na próxima aula)
-
----
-
----
-
-## ✅ Status das atividades (implementado neste repositório)
-
-**Exercícios (item 8)**
-- [x] Campo telefone no formulário e na tabela
-- [x] Coluna "Idade" calculada a partir da data de nascimento
-- [x] Contador "Total de pacientes: X"
-- [x] Bloqueio de e-mail duplicado com `alert()`
-
-**Extensões (item 9)**
-- [x] Botão "Remover" em cada linha
-- [x] Busca por nome em tempo real (evento `input`)
-- [x] Ordenação por nome ao clicar no cabeçalho (A-Z / Z-A)
-- [x] Persistência no `localStorage`
-
-As respostas das perguntas para discussão (item 11) estão em [`../issues/02-aula01-perguntas-discussao.md`](../issues/02-aula01-perguntas-discussao.md).
+- [x] Cards clicáveis (também pelo teclado: Enter/Espaço)
+- [x] Barras de progresso para HP, Ataque, Defesa e Velocidade
+- [x] Habilidades em badges (marcando as ocultas)
+- [x] Player de áudio com o *cry* do Pokémon (pausa ao fechar o modal)
+- [x] Sprites normal e shiny, frente e costas (com aviso quando o sprite não existe)
+- [x] Spinner enquanto carrega e mensagem amigável em caso de erro
+- [x] Cache dos Pokémon já abertos, evitando requisições repetidas

@@ -1,180 +1,316 @@
-// Chave usada para guardar os pacientes no localStorage do navegador
-const CHAVE_STORAGE = 'pacientes-aula01';
+const API_URL = 'https://pokeapi.co/api/v2/pokemon';
 
-// Array que guarda os pacientes cadastrados.
-// Agora é carregado do localStorage, então sobrevive ao recarregamento da página.
-let pacientes = carregarDoStorage();
+const pokemonGrid = document.getElementById('pokemonGrid');
+const loading = document.getElementById('loading');
+const searchInput = document.getElementById('searchInput');
+const searchBtn = document.getElementById('searchBtn');
 
-// Estado da tela: termo da busca e sentido da ordenação ('' = ordem de cadastro)
-let termoBusca = '';
-let ordemNome = '';
+// Função para buscar os detalhes individuais de um Pokémon
+async function fetchPokemonData(urlOrName) {
+	const url = urlOrName.startsWith('http')
+		? urlOrName
+		: `${API_URL}/${urlOrName.toLowerCase().trim()}`;
 
-// Referências aos elementos do DOM que vamos usar várias vezes
-const formulario = document.getElementById('form-paciente');
-const tabela = document.getElementById('tabela-pacientes');
-const contador = document.getElementById('contador-pacientes');
-const campoBusca = document.getElementById('busca');
-const cabecalhoNome = document.getElementById('th-nome');
-const setaOrdem = document.getElementById('seta-ordem');
-
-// ---------- Persistência (localStorage) ----------
-
-function carregarDoStorage() {
-	try {
-		const salvo = localStorage.getItem(CHAVE_STORAGE);
-		const lista = salvo ? JSON.parse(salvo) : [];
-		return Array.isArray(lista) ? lista : [];
-	} catch (erro) {
-		// JSON corrompido ou storage indisponível: começa vazio
-		console.error('Não foi possível ler o localStorage:', erro);
-		return [];
+	const response = await fetch(url);
+	if (!response.ok) {
+		throw new Error('Pokémon não encontrado');
 	}
+	console.log('Response:', response); // Log da resposta para depuração
+	return await response.json();
 }
 
-function salvarNoStorage() {
+// Função para carregar a lista inicial (ex: primeiros 20)
+async function loadInitialPokemon(limit = 20) {
+	showLoading(true);
+	pokemonGrid.innerHTML = '';
+
 	try {
-		localStorage.setItem(CHAVE_STORAGE, JSON.stringify(pacientes));
-	} catch (erro) {
-		console.error('Não foi possível salvar no localStorage:', erro);
-	}
-}
+		const response = await fetch(`${API_URL}?limit=${limit}`);
+		const data = await response.json();
 
-// ---------- Dados ----------
-
-// Função responsável por adicionar um paciente ao array
-function adicionarPaciente(nome, email, nascimento, telefone) {
-	// O id permite remover o paciente certo mesmo com a tabela filtrada/ordenada
-	const id = Date.now() + Math.random();
-	const novoPaciente = { id, nome, email, nascimento, telefone };
-	pacientes.push(novoPaciente);
-	salvarNoStorage();
-}
-
-// Remove o paciente com o id informado
-function removerPaciente(id) {
-	pacientes = pacientes.filter((paciente) => paciente.id !== id);
-	salvarNoStorage();
-	renderizarTabela();
-}
-
-// Aplica busca por nome e ordenação sem alterar o array original
-function obterPacientesVisiveis() {
-	let lista = pacientes.filter((paciente) =>
-		paciente.nome.toLowerCase().includes(termoBusca.toLowerCase())
-	);
-
-	if (ordemNome) {
-		const fator = ordemNome === 'asc' ? 1 : -1;
-		lista = [...lista].sort(
-			(a, b) => fator * a.nome.localeCompare(b.nome, 'pt-BR')
+		// Faz requisição paralela dos detalhes de cada um dos itens listados
+		const pokemonPromises = data.results.map((item) =>
+			fetchPokemonData(item.url)
 		);
+		const pokemonList = await Promise.all(pokemonPromises);
+
+		// Renderiza cada card
+		pokemonList.forEach(renderPokemonCard);
+	} catch (error) {
+		showError('Erro ao carregar a lista de Pokémon.');
+		console.error(error);
+	} finally {
+		showLoading(false);
+	}
+}
+
+// Função para criar a estrutura visual do Card no Bootstrap
+function renderPokemonCard(pokemon) {
+	console.log('Rendering Pokémon:', pokemon); // Log do Pokémon para depuração
+	// Pega a imagem oficial de alta qualidade (dream_world ou official-artwork)
+	const imageUrl =
+		pokemon.sprites.other['official-artwork'].front_default ||
+		pokemon.sprites.front_default;
+
+	// Mapeia os tipos para Badges do Bootstrap
+	const typesBadges = pokemon.types
+		.map(
+			(t) =>
+				`<span class="badge bg-secondary badge-type">${t.type.name}</span>`
+		)
+		.join('');
+
+	// Formata peso (em kg) e altura (em m)
+	const heightInMeters = (pokemon.height / 10).toFixed(1);
+	const weightInKg = (pokemon.weight / 10).toFixed(1);
+
+	const cardHTML = `
+        <div class="col">
+          <div class="card h-100 shadow-sm pokemon-card border-0" data-id="${pokemon.id}" role="button" tabindex="0" aria-label="Ver detalhes de ${pokemon.name}">
+            <div class="text-center p-3 bg-white rounded-top">
+              <img src="${imageUrl}" class="card-img-top img-fluid" style="max-height: 160px; object-fit: contain;" alt="${pokemon.name}">
+            </div>
+            <div class="card-body">
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <h5 class="card-title text-capitalize fw-bold m-0">${pokemon.name}</h5>
+                <small class="text-muted">#${String(pokemon.id).padStart(3, '0')}</small>
+              </div>
+              <div class="mb-3">
+                ${typesBadges}
+              </div>
+              <div class="row text-center border-top pt-2">
+                <div class="col-6 border-end">
+                  <small class="text-muted d-block">Altura</small>
+                  <strong>${heightInMeters} m</strong>
+                </div>
+                <div class="col-6">
+                  <small class="text-muted d-block">Peso</small>
+                  <strong>${weightInKg} kg</strong>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+
+	pokemonGrid.insertAdjacentHTML('beforeend', cardHTML);
+}
+
+// Busca específica por nome ou ID
+async function handleSearch() {
+	const query = searchInput.value.trim();
+	if (!query) {
+		loadInitialPokemon();
+		return;
 	}
 
-	return lista;
-}
+	showLoading(true);
+	pokemonGrid.innerHTML = '';
 
-// ---------- Interface ----------
-
-function criarCelula(texto) {
-	const celula = document.createElement('td');
-	celula.textContent = texto; // textContent evita injeção de HTML
-	return celula;
-}
-
-// Função responsável por desenhar a tabela inteira a partir do array
-function renderizarTabela() {
-	tabela.innerHTML = ''; // limpa a tabela antes de redesenhar
-
-	obterPacientesVisiveis().forEach((paciente) => {
-		const linha = document.createElement('tr');
-
-		linha.appendChild(criarCelula(paciente.nome));
-		linha.appendChild(criarCelula(paciente.email));
-		linha.appendChild(criarCelula(calcularIdade(paciente.nascimento)));
-		linha.appendChild(criarCelula(paciente.telefone || ''));
-		linha.appendChild(criarCelula(formatarData(paciente.nascimento)));
-
-		// Botão "Remover" de cada linha
-		const celulaAcoes = document.createElement('td');
-		const botaoRemover = document.createElement('button');
-		botaoRemover.type = 'button';
-		botaoRemover.textContent = 'Remover';
-		botaoRemover.className = 'btn btn-sm btn-outline-danger';
-		botaoRemover.addEventListener('click', () => removerPaciente(paciente.id));
-		celulaAcoes.appendChild(botaoRemover);
-		linha.appendChild(celulaAcoes);
-
-		tabela.appendChild(linha);
-	});
-
-	// O contador mostra o total cadastrado (e quantos aparecem quando há filtro)
-	const visiveis = tabela.children.length;
-	contador.textContent =
-		termoBusca && visiveis !== pacientes.length
-			? `Total de pacientes: ${pacientes.length} (exibindo ${visiveis})`
-			: `Total de pacientes: ${pacientes.length}`;
-
-	setaOrdem.textContent = ordemNome === 'asc' ? '▲' : ordemNome === 'desc' ? '▼' : '';
-}
-
-// Função utilitária só para formatar a data no padrão dd/mm/aaaa
-function formatarData(dataISO) {
-	const [ano, mes, dia] = dataISO.split('-');
-	return `${dia}/${mes}/${ano}`;
-}
-
-// Calcula a idade baseada na data ISO (YYYY-MM-DD)
-function calcularIdade(dataISO) {
-	if (!dataISO) return '';
-	const [ano, mes, dia] = dataISO.split('-').map(Number);
-	const hoje = new Date();
-	let idade = hoje.getFullYear() - ano;
-	const mesHoje = hoje.getMonth() + 1;
-	if (mesHoje < mes || (mesHoje === mes && hoje.getDate() < dia)) {
-		idade--;
+	try {
+		const pokemon = await fetchPokemonData(query);
+		renderPokemonCard(pokemon);
+	} catch (error) {
+		showError(`Nenhum Pokémon encontrado com o termo "${query}".`);
+	} finally {
+		showLoading(false);
 	}
-	return idade;
 }
 
-// ---------- Eventos ----------
-
-// Evento disparado quando o formulário é enviado
-formulario.addEventListener('submit', (event) => {
-	event.preventDefault(); // evita o recarregamento da página
-
-	const nome = document.getElementById('nome').value;
-	const email = document.getElementById('email').value;
-	const nascimento = document.getElementById('nascimento').value;
-	const telefone = document.getElementById('telefone').value;
-
-	// Normaliza e verifica e-mail duplicado (ignora maiúsculas/espaços)
-	const normalizedEmail = (email || '').trim().toLowerCase();
-	const emailJaExiste = pacientes.some(
-		(p) => (p.email || '').trim().toLowerCase() === normalizedEmail
-	);
-
-	if (emailJaExiste) {
-		alert('E-mail já cadastrado');
-		return; // não adiciona paciente duplicado
+// Utilitários de UI
+function showLoading(state) {
+	if (state) {
+		loading.classList.remove('d-none');
+	} else {
+		loading.classList.add('d-none');
 	}
+}
 
-	adicionarPaciente(nome, email, nascimento, telefone);
-	renderizarTabela();
+function showError(message) {
+	pokemonGrid.innerHTML = `
+        <div class="col-12">
+          <div class="alert alert-warning text-center" role="alert">
+            ${message}
+          </div>
+        </div>
+      `;
+}
 
-	formulario.reset(); // limpa os campos do formulário
+// ---------- Modal de detalhes ----------
+
+const modalElement = document.getElementById('pokemonModal');
+const modalTitle = document.getElementById('pokemonModalTitle');
+const modalBody = document.getElementById('pokemonModalBody');
+const pokemonModal = new bootstrap.Modal(modalElement);
+
+// Cache simples: evita buscar de novo um Pokémon já aberto
+const pokemonCache = new Map();
+// Guarda o último id pedido para ignorar respostas antigas (cliques rápidos)
+let ultimoIdSolicitado = null;
+
+// Cores das barras de progresso de cada status
+const STATUS_EXIBIDOS = [
+	{ chave: 'hp', rotulo: 'HP', cor: 'bg-success' },
+	{ chave: 'attack', rotulo: 'Ataque', cor: 'bg-danger' },
+	{ chave: 'defense', rotulo: 'Defesa', cor: 'bg-warning' },
+	{ chave: 'speed', rotulo: 'Velocidade', cor: 'bg-info' },
+];
+
+// Valor de referência para calcular a largura da barra (status base raramente passam de 150)
+const STATUS_MAXIMO = 150;
+
+function formatarId(id) {
+	return `#${String(id).padStart(3, '0')}`;
+}
+
+function renderizarStatus(pokemon) {
+	return STATUS_EXIBIDOS.map(({ chave, rotulo, cor }) => {
+		const item = pokemon.stats.find((s) => s.stat.name === chave);
+		const valor = item ? item.base_stat : 0;
+		const largura = Math.min(100, (valor / STATUS_MAXIMO) * 100);
+
+		return `
+        <div class="mb-3">
+          <div class="d-flex justify-content-between">
+            <small class="fw-bold">${rotulo}</small>
+            <small class="fw-bold">${valor}</small>
+          </div>
+          <div class="progress" style="height: 10px;">
+            <div class="progress-bar ${cor}" role="progressbar" style="width: ${largura}%;"
+                 aria-valuenow="${valor}" aria-valuemin="0" aria-valuemax="${STATUS_MAXIMO}"
+                 aria-label="${rotulo}: ${valor}"></div>
+          </div>
+        </div>`;
+	}).join('');
+}
+
+function renderizarHabilidades(pokemon) {
+	return pokemon.abilities
+		.map(
+			(a) =>
+				`<span class="badge text-bg-dark me-1 mb-1 text-capitalize">${a.ability.name}${
+					a.is_hidden ? ' (Oculta)' : ''
+				}</span>`
+		)
+		.join('');
+}
+
+function renderizarSprite(url, legenda, nome) {
+	const imagem = url
+		? `<img src="${url}" alt="${nome} - ${legenda}">`
+		: '<div class="text-muted small py-4">Indisponível</div>';
+
+	return `
+        <div class="col-6">
+          <div class="sprite-box">
+            ${imagem}
+            <div class="small text-secondary">${legenda}</div>
+          </div>
+        </div>`;
+}
+
+function renderizarSprites(pokemon) {
+	const s = pokemon.sprites;
+	return `
+      <div class="row g-2">
+        ${renderizarSprite(s.front_default, 'Normal (Frente)', pokemon.name)}
+        ${renderizarSprite(s.back_default, 'Normal (Costas)', pokemon.name)}
+        ${renderizarSprite(s.front_shiny, 'Shiny (Frente)', pokemon.name)}
+        ${renderizarSprite(s.back_shiny, 'Shiny (Costas)', pokemon.name)}
+      </div>`;
+}
+
+function renderizarAudio(pokemon) {
+	const som = pokemon.cries && (pokemon.cries.latest || pokemon.cries.legacy);
+	if (!som) {
+		return '<p class="text-muted small mb-0">Este Pokémon não possui áudio disponível.</p>';
+	}
+	return `<audio controls preload="none" class="w-100" src="${som}"></audio>`;
+}
+
+function renderizarModal(pokemon) {
+	modalTitle.textContent = `${pokemon.name} ${formatarId(pokemon.id)}`;
+	modalBody.innerHTML = `
+      <div class="row g-4">
+        <div class="col-md-6">
+          <h6 class="fw-bold mb-3">Variações de Sprites</h6>
+          ${renderizarSprites(pokemon)}
+          <h6 class="fw-bold mt-4 mb-2">Voz / Som (Cry)</h6>
+          ${renderizarAudio(pokemon)}
+        </div>
+        <div class="col-md-6">
+          <h6 class="fw-bold mb-3">Status Base</h6>
+          ${renderizarStatus(pokemon)}
+          <h6 class="fw-bold mt-4 mb-2">Habilidades</h6>
+          ${renderizarHabilidades(pokemon)}
+        </div>
+      </div>`;
+}
+
+function mostrarSpinnerNoModal() {
+	modalBody.innerHTML = `
+      <div class="text-center py-5">
+        <div class="spinner-border text-danger" role="status">
+          <span class="visually-hidden">Carregando...</span>
+        </div>
+      </div>`;
+}
+
+async function openPokemonModal(id) {
+	ultimoIdSolicitado = id;
+	modalTitle.textContent = 'Carregando...';
+	mostrarSpinnerNoModal(); // feedback visual enquanto os dados chegam
+	pokemonModal.show();
+
+	try {
+		let pokemon = pokemonCache.get(id);
+		if (!pokemon) {
+			pokemon = await fetchPokemonData(String(id));
+			pokemonCache.set(id, pokemon);
+		}
+
+		// Se o usuário já clicou em outro card, descarta esta resposta
+		if (ultimoIdSolicitado !== id) return;
+
+		renderizarModal(pokemon);
+	} catch (error) {
+		if (ultimoIdSolicitado !== id) return;
+		console.error(error);
+		modalTitle.textContent = 'Erro';
+		modalBody.innerHTML = `
+        <div class="alert alert-warning mb-0" role="alert">
+          Não foi possível carregar os detalhes deste Pokémon. Tente novamente.
+        </div>`;
+	}
+}
+
+// Delegação de eventos: um único listener cobre todos os cards (inclusive os criados depois)
+function abrirModalDoCard(event) {
+	const card = event.target.closest('.pokemon-card');
+	if (!card) return;
+	openPokemonModal(Number(card.dataset.id));
+}
+
+pokemonGrid.addEventListener('click', abrirModalDoCard);
+pokemonGrid.addEventListener('keydown', (e) => {
+	if (e.key === 'Enter' || e.key === ' ') {
+		e.preventDefault();
+		abrirModalDoCard(e);
+	}
 });
 
-// Busca em tempo real: a cada letra digitada a tabela é filtrada por nome
-campoBusca.addEventListener('input', () => {
-	termoBusca = campoBusca.value.trim();
-	renderizarTabela();
+// Ao fechar o modal, para o áudio que estiver tocando
+modalElement.addEventListener('hidden.bs.modal', () => {
+	const audio = modalBody.querySelector('audio');
+	if (audio) audio.pause();
+	ultimoIdSolicitado = null;
 });
 
-// Ordenação: cada clique no cabeçalho "Nome" alterna A-Z → Z-A
-cabecalhoNome.addEventListener('click', () => {
-	ordemNome = ordemNome === 'asc' ? 'desc' : 'asc';
-	renderizarTabela();
+// Eventos
+searchBtn.addEventListener('click', handleSearch);
+searchInput.addEventListener('keypress', (e) => {
+	if (e.key === 'Enter') handleSearch();
 });
 
-// Desenha os pacientes que já estavam salvos assim que a página abre
-renderizarTabela();
+// Inicialização
+loadInitialPokemon();
